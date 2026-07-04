@@ -61,13 +61,16 @@ jobs:
       - name: Package project
         run: |
           set -euo pipefail
+          package_path="$RUNNER_TEMP/monitoring-platform.tar.gz"
           tar \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.env' \
             --exclude='backups' \
             --exclude='.chaos' \
-            -czf monitoring-platform.tar.gz .
+            --exclude='monitoring-platform.tar.gz' \
+            -czf "$package_path" .
+          cp "$package_path" monitoring-platform.tar.gz
           ls -lh monitoring-platform.tar.gz
 
       - name: Configure SSH
