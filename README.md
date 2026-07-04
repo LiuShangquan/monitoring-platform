@@ -81,7 +81,7 @@ ACR_MIRROR=https://YOUR_ACR_ACCELERATOR_ID.mirror.aliyuncs.com sudo -E scripts/c
 docker compose pull
 ```
 
-`YOUR_ACR_ACCELERATOR_ID` 在阿里云容器镜像服务 ACR 的“镜像工具 -> 镜像加速器”页面获取。注意：镜像加速主要解决 Docker Hub；如果 `gcr.io/cadvisor/cadvisor` 仍拉取失败，请把该镜像同步到自己的 ACR 仓库，然后在 `.env` 中设置 `CADVISOR_IMAGE=registry.cn-hangzhou.aliyuncs.com/YOUR_NAMESPACE/cadvisor:v0.49.1`。
+`YOUR_ACR_ACCELERATOR_ID` 在阿里云容器镜像服务 ACR 的“镜像工具 -> 镜像加速器”页面获取。项目默认使用 `ghcr.io/google/cadvisor:0.55.1`，比旧的 `gcr.io` 来源更适合当前部署环境；如果 GHCR 仍拉取失败，请把该镜像同步到自己的 ACR 仓库，然后在 `.env` 中设置 `CADVISOR_IMAGE=registry.cn-hangzhou.aliyuncs.com/YOUR_NAMESPACE/cadvisor:0.55.1`。
 
 也可以使用项目脚本：
 
@@ -121,6 +121,7 @@ scripts/restart.sh
 scripts/stop.sh
 scripts/check.sh
 scripts/backup.sh
+scripts/reset_grafana_password.sh 'NEW_PASSWORD'
 ```
 
 阿里云 CI/CD 持续集成部署方案见 `docs/ci-cd.md`，支持云效 Flow，也支持 GitHub Actions 通过 SSH 部署到 ECS。仓库已提供 `.github/workflows/deploy-to-ecs.yml` 示例。

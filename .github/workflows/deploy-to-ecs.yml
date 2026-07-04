@@ -81,6 +81,16 @@ jobs:
           ECS_KNOWN_HOSTS: ${{ secrets.ECS_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
+          : "${ECS_HOST:?Missing GitHub secret ECS_HOST}"
+          : "${ECS_SSH_KEY:?Missing GitHub secret ECS_SSH_KEY}"
+
+          ECS_PORT="${ECS_PORT:-22}"
+
+          if ! printf '%s\n' "$ECS_SSH_KEY" | grep -q "BEGIN .*PRIVATE KEY"; then
+            echo "ECS_SSH_KEY must be the private key content, not the .pub public key." >&2
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$ECS_SSH_KEY" > ~/.ssh/ecs_deploy_key
@@ -89,8 +99,11 @@ jobs:
           if [ -n "${ECS_KNOWN_HOSTS:-}" ]; then
             printf '%s\n' "$ECS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
-            ssh-keyscan -p "${ECS_PORT:-22}" "$ECS_HOST" >> ~/.ssh/known_hosts
+            echo "ECS_KNOWN_HOSTS is empty, scanning SSH host key from $ECS_HOST:$ECS_PORT"
+            timeout 10 ssh-keyscan -p "$ECS_PORT" "$ECS_HOST" >> ~/.ssh/known_hosts
           fi
+
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Upload package
         env:
@@ -99,7 +112,10 @@ jobs:
           ECS_PORT: ${{ secrets.ECS_PORT }}
         run: |
           set -euo pipefail
-          scp -i ~/.ssh/ecs_deploy_key -P "${ECS_PORT:-22}" monitoring-platform.tar.gz \
+          : "${ECS_HOST:?Missing GitHub secret ECS_HOST}"
+          : "${ECS_USER:?Missing GitHub secret ECS_USER}"
+          ECS_PORT="${ECS_PORT:-22}"
+          scp -i ~/.ssh/ecs_deploy_key -P "$ECS_PORT" monitoring-platform.tar.gz \
             "$ECS_USER@$ECS_HOST:/tmp/monitoring-platform-${GITHUB_SHA}.tar.gz"
 
       - name: Deploy on ECS
@@ -110,10 +126,14 @@ jobs:
           DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
+          CADVISOR_IMAGE: ${{ secrets.CADVISOR_IMAGE }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/ecs_deploy_key -p "${ECS_PORT:-22}" "$ECS_USER@$ECS_HOST" \
-            "DEPLOY_DIR='${DEPLOY_DIR:-/opt/monitoring-platform}' PACKAGE='/tmp/monitoring-platform-${GITHUB_SHA}.tar.gz' GITHUB_SHA='${GITHUB_SHA}' GRAFANA_ADMIN_PASSWORD='${GRAFANA_ADMIN_PASSWORD:-}' SERVER_IP='${SERVER_IP:-}' bash -s" <<'REMOTE'
+          : "${ECS_HOST:?Missing GitHub secret ECS_HOST}"
+          : "${ECS_USER:?Missing GitHub secret ECS_USER}"
+          ECS_PORT="${ECS_PORT:-22}"
+          ssh -i ~/.ssh/ecs_deploy_key -p "$ECS_PORT" "$ECS_USER@$ECS_HOST" \
+            "DEPLOY_DIR='${DEPLOY_DIR:-/opt/monitoring-platform}' PACKAGE='/tmp/monitoring-platform-${GITHUB_SHA}.tar.gz' GITHUB_SHA='${GITHUB_SHA}' GRAFANA_ADMIN_PASSWORD='${GRAFANA_ADMIN_PASSWORD:-}' SERVER_IP='${SERVER_IP:-}' CADVISOR_IMAGE='${CADVISOR_IMAGE:-}' bash -s" <<'REMOTE'
           set -euo pipefail
 
           RELEASE_DIR="$DEPLOY_DIR/releases/$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:-manual}"
@@ -152,6 +172,15 @@ jobs:
               sed -i "s|^SERVER_IP=.*|SERVER_IP=$escaped_server_ip|" "$RELEASE_DIR/.env"
             else
               printf '\nSERVER_IP=%s\n' "$SERVER_IP" >> "$RELEASE_DIR/.env"
+            fi
+          fi
+
+          if [ -n "${CADVISOR_IMAGE:-}" ]; then
+            escaped_cadvisor_image="$(escape_sed_replacement "$CADVISOR_IMAGE")"
+            if grep -q '^CADVISOR_IMAGE=' "$RELEASE_DIR/.env"; then
+              sed -i "s|^CADVISOR_IMAGE=.*|CADVISOR_IMAGE=$escaped_cadvisor_image|" "$RELEASE_DIR/.env"
+            else
+              printf '\nCADVISOR_IMAGE=%s\n' "$CADVISOR_IMAGE" >> "$RELEASE_DIR/.env"
             fi
           fi
 

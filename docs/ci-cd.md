@@ -206,10 +206,10 @@ docker compose ps
 本项目默认使用 Prometheus、Grafana、Alertmanager 等官方镜像，因此 CI 不一定要构建镜像。ACR 的作用主要有两个：
 
 - 配置 Docker Hub 镜像加速，解决 ECS 拉取 Docker Hub 失败。
-- 将 `gcr.io/cadvisor/cadvisor` 等国外镜像同步到自己的 ACR 仓库，再通过 `.env` 覆盖：
+- 如果默认的 `ghcr.io/google/cadvisor:0.55.1` 在 ECS 上仍不可达，可同步到自己的 ACR 仓库，再通过 `.env` 覆盖：
 
 ```bash
-CADVISOR_IMAGE=registry.cn-hangzhou.aliyuncs.com/YOUR_NAMESPACE/cadvisor:v0.49.1
+CADVISOR_IMAGE=registry.cn-hangzhou.aliyuncs.com/YOUR_NAMESPACE/cadvisor:0.55.1
 ```
 
 如果以后你给项目增加自研 webhook 服务、告警适配器或运维 API，再使用 Flow 构建镜像并推送到 ACR。
@@ -253,6 +253,7 @@ docker compose ps
 | `DEPLOY_DIR` | `/opt/monitoring-platform` | ECS 部署目录 |
 | `GRAFANA_ADMIN_PASSWORD` | `YOUR_PASSWORD` | Grafana 管理员密码 |
 | `SERVER_IP` | `YOUR_SERVER_IP` | 文档和脚本使用的服务器 IP |
+| `CADVISOR_IMAGE` | `registry.cn-hangzhou.aliyuncs.com/YOUR_NAMESPACE/cadvisor:0.55.1` | 可选，ECS 无法访问 GHCR 时覆盖 cAdvisor 镜像 |
 | `ECS_KNOWN_HOSTS` | `ssh-keyscan` 输出 | 可选，推荐填写以固定主机指纹 |
 
 获取 `ECS_KNOWN_HOSTS`：

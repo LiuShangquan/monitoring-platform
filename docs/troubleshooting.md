@@ -19,10 +19,10 @@ docker compose up -d
 
 `YOUR_ACR_ACCELERATOR_ID` 在阿里云容器镜像服务 ACR 的“镜像工具 -> 镜像加速器”页面获取。
 
-如果只有 `cadvisor` 失败，原因通常是它默认来自 `gcr.io`。可以把 `gcr.io/cadvisor/cadvisor:v0.49.1` 同步到自己的阿里云 ACR 仓库，然后在 `.env` 中覆盖：
+如果只有 `cadvisor` 失败，原因通常是当前 ECS 无法访问 cAdvisor 镜像仓库。项目默认使用 `ghcr.io/google/cadvisor:0.55.1`，如果 GHCR 仍不可达，可以把该镜像同步到自己的阿里云 ACR 仓库，然后在 `.env` 中覆盖：
 
 ```bash
-CADVISOR_IMAGE=registry.cn-hangzhou.aliyuncs.com/YOUR_NAMESPACE/cadvisor:v0.49.1
+CADVISOR_IMAGE=registry.cn-hangzhou.aliyuncs.com/YOUR_NAMESPACE/cadvisor:0.55.1
 ```
 
 再执行：
@@ -48,7 +48,27 @@ GF_SECURITY_ADMIN_USER=admin
 GF_SECURITY_ADMIN_PASSWORD=YOUR_PASSWORD
 ```
 
-如果已经初始化过 Grafana volume，修改 `.env` 不会重置旧密码。演示环境可执行：
+如果已经初始化过 Grafana volume，修改 `.env` 不会重置旧密码，因为 Grafana 首次启动后会把管理员账号写入自己的数据库。
+
+推荐重置方式：
+
+```bash
+scripts/reset_grafana_password.sh 'NEW_PASSWORD'
+```
+
+也可以先修改 `.env`：
+
+```bash
+GF_SECURITY_ADMIN_PASSWORD=NEW_PASSWORD
+```
+
+然后执行：
+
+```bash
+scripts/reset_grafana_password.sh
+```
+
+演示环境如果不需要保留 Grafana 数据，也可以删除 volume 后重新初始化：
 
 ```bash
 CLEAN_VOLUMES=true scripts/clean.sh
