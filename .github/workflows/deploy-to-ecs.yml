@@ -185,14 +185,21 @@ jobs:
           fi
 
           echo "[deploy] Switch current symlink"
+          CURRENT_PATH="$DEPLOY_DIR/current"
           mkdir -p "$DEPLOY_DIR"
-          if [ -L "$DEPLOY_DIR/current" ] || [ -f "$DEPLOY_DIR/current" ]; then
-            rm -f "$DEPLOY_DIR/current"
-          elif [ -d "$DEPLOY_DIR/current" ]; then
-            mv "$DEPLOY_DIR/current" "$DEPLOY_DIR/current.bak.$(date +%Y%m%d-%H%M%S)"
+          if [ -L "$CURRENT_PATH" ] || [ -f "$CURRENT_PATH" ]; then
+            rm -f "$CURRENT_PATH"
+          elif [ -d "$CURRENT_PATH" ]; then
+            mv "$CURRENT_PATH" "$DEPLOY_DIR/current.bak.$(date +%Y%m%d-%H%M%S)"
           fi
-          ln -sfnT "$RELEASE_DIR" "$DEPLOY_DIR/current"
-          cd "$DEPLOY_DIR/current"
+          ln -s "$RELEASE_DIR" "$CURRENT_PATH"
+          ls -ld "$DEPLOY_DIR" "$RELEASE_DIR" "$CURRENT_PATH" || true
+          if [ -d "$CURRENT_PATH" ]; then
+            cd "$CURRENT_PATH"
+          else
+            echo "[deploy] current symlink is unavailable, using release directory directly"
+            cd "$RELEASE_DIR"
+          fi
 
           echo "[deploy] Ensure scripts executable"
           chmod +x scripts/*.sh scripts/chaos/*.sh
