@@ -185,7 +185,13 @@ jobs:
           fi
 
           echo "[deploy] Switch current symlink"
-          ln -sfn "$RELEASE_DIR" "$DEPLOY_DIR/current"
+          mkdir -p "$DEPLOY_DIR"
+          if [ -L "$DEPLOY_DIR/current" ] || [ -f "$DEPLOY_DIR/current" ]; then
+            rm -f "$DEPLOY_DIR/current"
+          elif [ -d "$DEPLOY_DIR/current" ]; then
+            mv "$DEPLOY_DIR/current" "$DEPLOY_DIR/current.bak.$(date +%Y%m%d-%H%M%S)"
+          fi
+          ln -sfnT "$RELEASE_DIR" "$DEPLOY_DIR/current"
           cd "$DEPLOY_DIR/current"
 
           echo "[deploy] Ensure scripts executable"
