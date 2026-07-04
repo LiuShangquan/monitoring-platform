@@ -1,0 +1,52 @@
+groups:
+  - name: container-alerts
+    rules:
+      - alert: CadvisorDown
+        expr: up{job="cadvisor"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: container
+        annotations:
+          summary: "cAdvisor 不可用: {{ $labels.instance }}"
+          description: "Prometheus 无法采集 cAdvisor 指标，Docker 容器监控可能失效。"
+
+      - alert: ContainerRecentlyRestarted
+        expr: changes(container_start_time_seconds{job="cadvisor",name!="",image!=""}[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "容器发生重启: {{ $labels.name }}"
+          description: "容器 {{ $labels.name }} 在最近 10 分钟内发生过重启。"
+
+      - alert: ContainerMissing
+        expr: time() - container_last_seen{job="cadvisor",name!="",image!=""} > 90
+        for: 1m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "容器指标消失: {{ $labels.name }}"
+          description: "容器 {{ $labels.name }} 超过 90 秒没有被 cAdvisor 观测到，可能已经停止或异常。"
+
+      - alert: HighContainerCPUUsage
+        expr: sum by(name) (rate(container_cpu_usage_seconds_total{job="cadvisor",name!="",image!=""}[5m])) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "容器 CPU 使用率较高: {{ $labels.name }}"
+          description: "容器 {{ $labels.name }} CPU 使用率持续较高，当前值 {{ printf \"%.2f\" $value }}%。"
+
+      - alert: HighContainerMemoryUsage
+        expr: ((container_memory_working_set_bytes{job="cadvisor",name!="",image!=""} / container_spec_memory_limit_bytes{job="cadvisor",name!="",image!=""}) * 100 > 85) and on(instance, id) (container_spec_memory_limit_bytes{job="cadvisor",name!="",image!=""} > 0)
+        for: 5m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "容器内存使用率较高: {{ $labels.name }}"
+          description: "容器 {{ $labels.name }} 内存使用率超过 85%，当前值 {{ printf \"%.2f\" $value }}%。"

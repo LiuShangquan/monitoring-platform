@@ -1,0 +1,73 @@
+groups:
+  - name: host-alerts
+    rules:
+      - alert: HostDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "服务器离线: {{ $labels.instance }}"
+          description: "Node Exporter 目标 {{ $labels.instance }} 已经超过 1 分钟不可达。"
+
+      - alert: HighCPUUsage
+        expr: 100 - avg by(instance) (irate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[5m])) * 100 > 80
+        for: 3m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "CPU 使用率过高: {{ $labels.instance }}"
+          description: "CPU 使用率持续超过 80%，当前值 {{ printf \"%.2f\" $value }}%。"
+
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"}) * 100 > 80
+        for: 3m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "内存使用率过高: {{ $labels.instance }}"
+          description: "内存使用率持续超过 80%，当前值 {{ printf \"%.2f\" $value }}%。"
+
+      - alert: HighDiskUsage
+        expr: (1 - node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|aufs",mountpoint!~"/(dev|proc|sys|run)($|/)"} / node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|aufs",mountpoint!~"/(dev|proc|sys|run)($|/)"}) * 100 > 85
+        for: 5m
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "磁盘使用率过高: {{ $labels.instance }} {{ $labels.mountpoint }}"
+          description: "文件系统 {{ $labels.mountpoint }} 使用率超过 85%，当前值 {{ printf \"%.2f\" $value }}%。"
+
+      - alert: HighDiskIOWait
+        expr: avg by(instance) (irate(node_cpu_seconds_total{job="node-exporter",mode="iowait"}[5m])) * 100 > 20
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "磁盘 IO 等待过高: {{ $labels.instance }}"
+          description: "CPU iowait 持续超过 20%，当前值 {{ printf \"%.2f\" $value }}%。"
+
+      - alert: HighSystemLoad
+        expr: node_load1{job="node-exporter"} / count without(cpu, mode) (node_cpu_seconds_total{job="node-exporter",mode="idle"}) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "系统负载过高: {{ $labels.instance }}"
+          description: "1 分钟负载超过 CPU 核数的 1.5 倍，当前比值 {{ printf \"%.2f\" $value }}。"
+
+      - alert: HighNetworkReceiveTraffic
+        expr: sum by(instance) (irate(node_network_receive_bytes_total{job="node-exporter",device!~"lo|veth.*|docker.*|br-.*"}[5m])) > 104857600
+        for: 5m
+        labels:
+          severity: info
+          category: host
+        annotations:
+          summary: "网络接收流量较高: {{ $labels.instance }}"
+          description: "网络接收速率超过 100MB/s，当前值 {{ printf \"%.2f\" $value }} B/s。"
+

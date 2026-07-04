@@ -1,0 +1,23 @@
+groups:
+  - name: service-alerts
+    rules:
+      - alert: HTTPServiceDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: service
+        annotations:
+          summary: "HTTP 服务不可访问: {{ $labels.instance }}"
+          description: "Blackbox Exporter 探测 {{ $labels.instance }} 失败超过 1 分钟。"
+
+      - alert: HighHTTPProbeLatency
+        expr: probe_duration_seconds{job="blackbox-http"} > 2
+        for: 3m
+        labels:
+          severity: warning
+          category: service
+        annotations:
+          summary: "HTTP 服务响应较慢: {{ $labels.instance }}"
+          description: "HTTP 探测耗时超过 2 秒，当前值 {{ printf \"%.2f\" $value }} 秒。"
+

@@ -1,0 +1,33 @@
+---
+monitoring_install_dir: /opt/monitoring-platform
+monitoring_compose_project_name: monitoring-platform
+monitoring_timezone: Asia/Shanghai
+
+# Change this password before production deployment.
+grafana_admin_user: admin
+grafana_admin_password: YOUR_PASSWORD
+
+demo_http_port: 8080
+
+monitoring_project_items:
+  - docker-compose.yml
+  - .env.example
+  - README.md
+  - .gitignore
+  - prometheus
+  - alertmanager
+  - grafana
+  - blackbox
+  - ansible
+  - scripts
+  - docs
+
+# Package names are intentionally conservative. Some CentOS/Alibaba Cloud Linux
+# images may require enabling the official Docker repository first.
+debian_docker_packages:
+  - docker.io
+  - docker-compose-plugin
+
+redhat_docker_packages:
+  - docker
+  - docker-compose-plugin

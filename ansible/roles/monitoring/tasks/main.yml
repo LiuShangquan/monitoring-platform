@@ -1,0 +1,111 @@
+---
+- name: Ensure required base packages are installed on Debian family
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - python3
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install Docker packages on Debian family
+  ansible.builtin.apt:
+    name: "{{ debian_docker_packages }}"
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure required base packages are installed on RedHat family
+  ansible.builtin.yum:
+    name:
+      - ca-certificates
+      - curl
+      - python3
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Install Docker packages on RedHat family
+  ansible.builtin.yum:
+    name: "{{ redhat_docker_packages }}"
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Enable and start Docker service
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Verify Docker Compose plugin is available
+  ansible.builtin.command: docker compose version
+  changed_when: false
+
+- name: Create monitoring installation directory
+  ansible.builtin.file:
+    path: "{{ monitoring_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy monitoring project files without local runtime data
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../{{ item }}"
+    dest: "{{ monitoring_install_dir }}/"
+    owner: root
+    group: root
+    mode: preserve
+  loop: "{{ monitoring_project_items }}"
+
+- name: Render production .env file
+  ansible.builtin.copy:
+    dest: "{{ monitoring_install_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      COMPOSE_PROJECT_NAME={{ monitoring_compose_project_name }}
+      TZ={{ monitoring_timezone }}
+      GF_SECURITY_ADMIN_USER={{ grafana_admin_user }}
+      GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}
+      DEMO_HTTP_PORT={{ demo_http_port }}
+      SERVER_IP={{ ansible_host | default(inventory_hostname) }}
+
+- name: Find shell scripts on remote host
+  ansible.builtin.find:
+    paths: "{{ monitoring_install_dir }}/scripts"
+    patterns: "*.sh"
+    recurse: true
+    file_type: file
+  register: monitoring_shell_scripts
+
+- name: Ensure shell scripts are executable
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "0755"
+  loop: "{{ monitoring_shell_scripts.files }}"
+
+- name: Validate Docker Compose file
+  ansible.builtin.command: docker compose config -q
+  args:
+    chdir: "{{ monitoring_install_dir }}"
+  changed_when: false
+
+- name: Start monitoring stack
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: "{{ monitoring_install_dir }}"
+  register: compose_up
+  changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout or 'Recreated' in compose_up.stdout or 'Running' in compose_up.stdout"
+
+- name: Show container status
+  ansible.builtin.command: docker compose ps
+  args:
+    chdir: "{{ monitoring_install_dir }}"
+  changed_when: false
+  register: compose_ps
+
+- name: Print container status
+  ansible.builtin.debug:
+    var: compose_ps.stdout_lines

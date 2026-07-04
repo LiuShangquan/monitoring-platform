@@ -1,0 +1,9 @@
+---
+- name: Deploy cloud native monitoring platform
+  hosts: monitoring_servers
+  become: true
+  gather_facts: true
+
+  roles:
+    - monitoring
+

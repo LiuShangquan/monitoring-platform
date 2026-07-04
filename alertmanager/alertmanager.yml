@@ -1,0 +1,48 @@
+global:
+  resolve_timeout: 5m
+  # Email notification example. Replace placeholders before enabling email_configs.
+  # smtp_smarthost: "smtp.example.com:587"
+  # smtp_from: "YOUR_EMAIL"
+  # smtp_auth_username: "YOUR_EMAIL"
+  # smtp_auth_password: "YOUR_PASSWORD"
+  # smtp_require_tls: true
+
+route:
+  group_by: ["alertname", "category", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
+  receiver: webhook-example
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: webhook-example
+      repeat_interval: 30m
+    - matchers:
+        - severity="warning"
+      receiver: webhook-example
+      repeat_interval: 1h
+
+inhibit_rules:
+  # When a host is down, suppress lower-level alerts from the same instance.
+  - source_matchers:
+      - alertname="HostDown"
+    target_matchers:
+      - severity=~"warning|info"
+    equal: ["instance"]
+
+receivers:
+  - name: webhook-example
+    webhook_configs:
+      # Replace this URL with a real webhook, such as DingTalk/Feishu/WeCom adapter.
+      # Alertmanager sends both firing and resolved notifications by default.
+      - url: "http://127.0.0.1:5001/alert"
+        send_resolved: true
+        max_alerts: 10
+    # Email example. Uncomment after setting global smtp_* values.
+    # email_configs:
+    #   - to: "YOUR_EMAIL"
+    #     send_resolved: true
+
+templates: []
+
