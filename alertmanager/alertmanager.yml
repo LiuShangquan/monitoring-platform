@@ -1,8 +1,8 @@
 global:
   resolve_timeout: 5m
-  smtp_smarthost: "smtp.163.com:587"
-  smtp_from: "15233158717@163.com"
-  smtp_auth_username: "15233158717@163.com"
+  smtp_smarthost: "smtp.qq.com:587"
+  smtp_from: "l18633130289@qq.com"
+  smtp_auth_username: "l18633130289@qq.com"
   smtp_auth_password_file: "/run/secrets/smtp_auth_password"
   smtp_require_tls: true
 
@@ -33,7 +33,7 @@ inhibit_rules:
 receivers:
   - name: email-primary
     email_configs:
-      - to: "15233158717@163.com"
+      - to: "l18633130289@qq.com"
         send_resolved: true
         headers:
           subject: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} {{ .CommonLabels.instance }}"
