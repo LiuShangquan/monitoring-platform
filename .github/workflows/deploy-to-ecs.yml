@@ -178,7 +178,7 @@ jobs:
             exit 1
           fi
           if [ -f "$RELEASE_DIR/secrets/smtp_auth_password" ]; then
-            chmod 600 "$RELEASE_DIR/secrets/smtp_auth_password"
+            chmod 644 "$RELEASE_DIR/secrets/smtp_auth_password"
           else
             echo "[deploy] Expected SMTP secret file was not created." >&2
             exit 1
