@@ -163,6 +163,9 @@ jobs:
           echo "[deploy] Preserve or create Alertmanager SMTP secret"
           mkdir -p "$RELEASE_DIR/secrets"
           chmod 700 "$RELEASE_DIR/secrets"
+          if [ -d "$RELEASE_DIR/secrets/smtp_auth_password" ]; then
+            rm -rf "$RELEASE_DIR/secrets/smtp_auth_password"
+          fi
           if [ -n "${SMTP_AUTH_PASSWORD_B64:-}" ]; then
             printf '%s' "$SMTP_AUTH_PASSWORD_B64" | base64 -d > "$RELEASE_DIR/secrets/smtp_auth_password"
           elif [ -f "$DEPLOY_DIR/current/secrets/smtp_auth_password" ]; then
