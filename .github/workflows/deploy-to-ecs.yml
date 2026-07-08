@@ -170,10 +170,15 @@ jobs:
           elif [ -f "$DEPLOY_DIR/secrets/smtp_auth_password" ]; then
             cp "$DEPLOY_DIR/secrets/smtp_auth_password" "$RELEASE_DIR/secrets/smtp_auth_password"
           else
-            echo "[deploy] SMTP_AUTH_PASSWORD is empty and no existing SMTP secret file was found. Email notifications may fail." >&2
+            echo "[deploy] SMTP_AUTH_PASSWORD is empty and no existing SMTP secret file was found." >&2
+            echo "[deploy] Add GitHub Actions secret SMTP_AUTH_PASSWORD or create $DEPLOY_DIR/secrets/smtp_auth_password on the server before deploying." >&2
+            exit 1
           fi
           if [ -f "$RELEASE_DIR/secrets/smtp_auth_password" ]; then
             chmod 600 "$RELEASE_DIR/secrets/smtp_auth_password"
+          else
+            echo "[deploy] Expected SMTP secret file was not created." >&2
+            exit 1
           fi
 
           escape_sed_replacement() {
