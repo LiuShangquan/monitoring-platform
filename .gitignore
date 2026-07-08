@@ -1,5 +1,5 @@
 .env
 backups/
 .chaos/
+secrets/
 *.log
-

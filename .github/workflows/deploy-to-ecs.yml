@@ -66,6 +66,7 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.env' \
+            --exclude='secrets' \
             --exclude='backups' \
             --exclude='.chaos' \
             --exclude='monitoring-platform.tar.gz' \
@@ -127,13 +128,19 @@ jobs:
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
           CADVISOR_IMAGE: ${{ secrets.CADVISOR_IMAGE }}
+          SMTP_AUTH_PASSWORD: ${{ secrets.SMTP_AUTH_PASSWORD }}
         run: |
           set -euo pipefail
           : "${ECS_HOST:?Missing GitHub secret ECS_HOST}"
           : "${ECS_USER:?Missing GitHub secret ECS_USER}"
           ECS_PORT="${ECS_PORT:-22}"
+          SMTP_AUTH_PASSWORD_B64=""
+          if [ -n "${SMTP_AUTH_PASSWORD:-}" ]; then
+            SMTP_AUTH_PASSWORD_B64="$(printf '%s' "$SMTP_AUTH_PASSWORD" | base64 -w 0)"
+          fi
+
           ssh -i ~/.ssh/ecs_deploy_key -p "$ECS_PORT" "$ECS_USER@$ECS_HOST" \
-            "DEPLOY_DIR='${DEPLOY_DIR:-/opt/monitoring-platform}' PACKAGE='/tmp/monitoring-platform-${GITHUB_SHA}.tar.gz' GITHUB_SHA='${GITHUB_SHA}' GRAFANA_ADMIN_PASSWORD='${GRAFANA_ADMIN_PASSWORD:-}' SERVER_IP='${SERVER_IP:-}' CADVISOR_IMAGE='${CADVISOR_IMAGE:-}' bash -s" <<'REMOTE'
+            "DEPLOY_DIR='${DEPLOY_DIR:-/opt/monitoring-platform}' PACKAGE='/tmp/monitoring-platform-${GITHUB_SHA}.tar.gz' GITHUB_SHA='${GITHUB_SHA}' GRAFANA_ADMIN_PASSWORD='${GRAFANA_ADMIN_PASSWORD:-}' SERVER_IP='${SERVER_IP:-}' CADVISOR_IMAGE='${CADVISOR_IMAGE:-}' SMTP_AUTH_PASSWORD_B64='${SMTP_AUTH_PASSWORD_B64:-}' bash -s" <<'REMOTE'
           set -euo pipefail
 
           RELEASE_DIR="$DEPLOY_DIR/releases/$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:-manual}"
@@ -151,6 +158,22 @@ jobs:
             cp "$DEPLOY_DIR/.env" "$RELEASE_DIR/.env"
           else
             cp "$RELEASE_DIR/.env.example" "$RELEASE_DIR/.env"
+          fi
+
+          echo "[deploy] Preserve or create Alertmanager SMTP secret"
+          mkdir -p "$RELEASE_DIR/secrets"
+          chmod 700 "$RELEASE_DIR/secrets"
+          if [ -n "${SMTP_AUTH_PASSWORD_B64:-}" ]; then
+            printf '%s' "$SMTP_AUTH_PASSWORD_B64" | base64 -d > "$RELEASE_DIR/secrets/smtp_auth_password"
+          elif [ -f "$DEPLOY_DIR/current/secrets/smtp_auth_password" ]; then
+            cp "$DEPLOY_DIR/current/secrets/smtp_auth_password" "$RELEASE_DIR/secrets/smtp_auth_password"
+          elif [ -f "$DEPLOY_DIR/secrets/smtp_auth_password" ]; then
+            cp "$DEPLOY_DIR/secrets/smtp_auth_password" "$RELEASE_DIR/secrets/smtp_auth_password"
+          else
+            echo "[deploy] SMTP_AUTH_PASSWORD is empty and no existing SMTP secret file was found. Email notifications may fail." >&2
+          fi
+          if [ -f "$RELEASE_DIR/secrets/smtp_auth_password" ]; then
+            chmod 600 "$RELEASE_DIR/secrets/smtp_auth_password"
           fi
 
           escape_sed_replacement() {
